@@ -22,6 +22,7 @@ using NuGetGallery.Authentication;
 using NuGetGallery.Configuration;
 using NuGetGallery.Framework;
 using NuGetGallery.Infrastructure.Authentication;
+using NuGetGallery.Infrastructure.Cloud;
 using NuGetGallery.Packaging;
 using NuGetGallery.Security;
 using Xunit;
@@ -1576,7 +1577,7 @@ namespace NuGetGallery
 
                 var fakePackageVersionReport = report.ToString();
 
-                var fakeReportService = new Mock<IReportService>();
+                var fakeReportService = new Mock<IReportService<StatsContainer>>();
 
                 fakeReportService
                     .Setup(x => x.Load("recentpopularitydetail.json"))
@@ -1629,7 +1630,7 @@ namespace NuGetGallery
 
                 var fakePackageVersionReport = report.ToString();
 
-                var fakeReportService = new Mock<IReportService>();
+                var fakeReportService = new Mock<IReportService<StatsContainer>>();
 
                 fakeReportService.Setup(x => x.Load("recentpopularitydetail.json")).Returns(Task.FromResult(new StatisticsReport(fakePackageVersionReport, DateTime.UtcNow)));
 

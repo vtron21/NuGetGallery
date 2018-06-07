@@ -14,6 +14,7 @@ using System.Web.Routing;
 using Moq;
 using Newtonsoft.Json.Linq;
 using NuGetGallery.Framework;
+using NuGetGallery.Infrastructure.Cloud;
 using Xunit;
 
 namespace NuGetGallery
@@ -96,7 +97,7 @@ namespace NuGetGallery
             var fakeNuGetClientVersion = report3.ToString();
             var fakeLast6Weeks = report4.ToString();
 
-            var fakeReportService = new Mock<IReportService>();
+            var fakeReportService = new Mock<IReportService<StatsContainer>>();
 
             var updatedUtc = new DateTime(2001, 01, 01, 10, 20, 30);
 
@@ -211,7 +212,7 @@ namespace NuGetGallery
             var fakeNuGetClientVersion = report3.ToString();
             var fakeLast6Weeks = report4.ToString();
 
-            var fakeReportService = new Mock<IReportService>();
+            var fakeReportService = new Mock<IReportService<StatsContainer>>();
 
             fakeReportService.Setup(x => x.Load("recentpopularity.json")).Returns(Task.FromResult(new StatisticsReport(fakePackageReport, DateTime.UtcNow)));
             fakeReportService.Setup(x => x.Load("recentpopularitydetail.json")).Returns(Task.FromResult(new StatisticsReport(fakePackageVersionReport, DateTime.UtcNow)));
@@ -278,7 +279,7 @@ namespace NuGetGallery
 
             var fakePackageReport = report.ToString();
 
-            var fakeReportService = new Mock<IReportService>();
+            var fakeReportService = new Mock<IReportService<StatsContainer>>();
 
             fakeReportService.Setup(x => x.Load("recentpopularity.json")).Returns(Task.FromResult(new StatisticsReport(fakePackageReport, DateTime.UtcNow)));
 
@@ -323,7 +324,7 @@ namespace NuGetGallery
 
             var fakePackageVersionReport = report.ToString();
 
-            var fakeReportService = new Mock<IReportService>();
+            var fakeReportService = new Mock<IReportService<StatsContainer>>();
             var updatedUtc1 = new DateTime(2002, 01, 01, 10, 20, 30);
             var updatedUtc2 = new DateTime(2001, 01, 01, 10, 20, 30);
 
@@ -351,7 +352,7 @@ namespace NuGetGallery
         {
             string PackageId = "A";
 
-            var fakeReportService = new Mock<IReportService>();
+            var fakeReportService = new Mock<IReportService<StatsContainer>>();
 
             var controller = new StatisticsController(new JsonStatisticsService(fakeReportService.Object));
 
@@ -417,7 +418,7 @@ namespace NuGetGallery
 
             var fakeReport = report.ToString();
 
-            var fakeReportService = new Mock<IReportService>();
+            var fakeReportService = new Mock<IReportService<StatsContainer>>();
 
             string reportName = "recentpopularity/RecentPopularityDetail_" + PackageId + ".json";
             reportName = reportName.ToLowerInvariant();
@@ -499,7 +500,7 @@ namespace NuGetGallery
 
             var fakeReport = report.ToString();
 
-            var fakeReportService = new Mock<IReportService>();
+            var fakeReportService = new Mock<IReportService<StatsContainer>>();
 
             string reportName = "recentpopularity/RecentPopularityDetail_" + PackageId + ".json";
             reportName = reportName.ToLowerInvariant();
@@ -535,7 +536,7 @@ namespace NuGetGallery
             string PackageId = "A";
             string PackageVersion = "2.0";
 
-            var fakeReportService = new Mock<IReportService>();
+            var fakeReportService = new Mock<IReportService<StatsContainer>>();
 
             var controller = new StatisticsController(new JsonStatisticsService(fakeReportService.Object));
 
@@ -603,7 +604,7 @@ namespace NuGetGallery
 
             var fakeReport = report.ToString();
 
-            var fakeReportService = new Mock<IReportService>();
+            var fakeReportService = new Mock<IReportService<StatsContainer>>();
 
             string reportName = "recentpopularity/RecentPopularityDetail_" + PackageId + ".json";
             reportName = reportName.ToLowerInvariant();

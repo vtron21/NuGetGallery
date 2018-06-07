@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 using System.Linq;
+using NuGetGallery.Infrastructure.Cloud;
 
 namespace NuGetGallery.Services
 {
@@ -123,7 +124,7 @@ namespace NuGetGallery.Services
             public readonly string Package2Version = "1.0.0";
             public readonly int Package2Downloads = 789;
 
-            protected readonly Mock<IReportService> _reportService;
+            protected readonly Mock<IReportService<StatsContainer>> _reportService;
             protected readonly JsonStatisticsService _target;
 
             protected Dictionary<string, object>[] PackageDownloadsReport => new[]
@@ -167,7 +168,7 @@ namespace NuGetGallery.Services
 
             public FactsBase()
             {
-                _reportService = new Mock<IReportService>();
+                _reportService = new Mock<IReportService<StatsContainer>>();
 
                 _target = new JsonStatisticsService(_reportService.Object);
             }

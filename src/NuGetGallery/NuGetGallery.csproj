@@ -800,6 +800,8 @@
     <Compile Include="Infrastructure\Authentication\ApiKeyV3.cs" />
     <Compile Include="Infrastructure\Authentication\ApiKeyV4.cs" />
     <Compile Include="Infrastructure\Authentication\Base32Encoder.cs" />
+    <Compile Include="Infrastructure\Cloud\RelatedPackagesContainer.cs" />
+    <Compile Include="Infrastructure\Cloud\StatsContainer.cs" />
     <Compile Include="Migrations\201711082145351_AddAccountDelete.cs" />
     <Compile Include="Migrations\201711082145351_AddAccountDelete.Designer.cs">
       <DependentUpon>201711082145351_AddAccountDelete.cs</DependentUpon>
@@ -875,6 +877,7 @@
     <Compile Include="Services\IContentObjectService.cs" />
     <Compile Include="Services\ImmediatePackageValidator.cs" />
     <Compile Include="Services\ContentObjectService.cs" />
+    <Compile Include="Services\IReportContainer.cs" />
     <Compile Include="Services\PackageOwnershipManagementService.cs" />
     <Compile Include="Services\IPackageOwnershipManagementService.cs" />
     <Compile Include="Services\IPackageValidationInitiator.cs" />

@@ -30,6 +30,7 @@ using NuGetGallery.Cookies;
 using NuGetGallery.Diagnostics;
 using NuGetGallery.Infrastructure;
 using NuGetGallery.Infrastructure.Authentication;
+using NuGetGallery.Infrastructure.Cloud;
 using NuGetGallery.Infrastructure.Lucene;
 using NuGetGallery.Security;
 
@@ -519,7 +520,7 @@ namespace NuGetGallery
 
             builder.RegisterInstance(NullReportService.Instance)
                 .AsSelf()
-                .As<IReportService>()
+                .As<IReportService<StatsContainer>>()
                 .SingleInstance();
 
             builder.RegisterInstance(NullStatisticsService.Instance)
@@ -601,9 +602,15 @@ namespace NuGetGallery
                 .SingleInstance();
 
             // when running on Windows Azure, pull the statistics from the warehouse via storage
-            builder.RegisterInstance(new CloudReportService(configuration.Current.AzureStorage_Statistics_ConnectionString, configuration.Current.AzureStorageReadAccessGeoRedundant))
+            builder.RegisterInstance(new CloudReportService<StatsContainer>(configuration.Current.AzureStorage_Statistics_ConnectionString, configuration.Current.AzureStorageReadAccessGeoRedundant))
                 .AsSelf()
-                .As<IReportService>()
+                .As<IReportService<StatsContainer>>()
+                .As<ICloudStorageStatusDependency>()
+                .SingleInstance();
+
+            builder.RegisterInstance(new CloudReportService<RelatedPackagesContainer>(configuration.Current.AzureStorage_Statistics_ConnectionString, configuration.Current.AzureStorageReadAccessGeoRedundant))
+                .AsSelf()
+                .As<IReportService<RelatedPackagesContainer>>()
                 .As<ICloudStorageStatusDependency>()
                 .SingleInstance();
 

@@ -8,9 +8,10 @@ using Microsoft.WindowsAzure.Storage.RetryPolicies;
 
 namespace NuGetGallery
 {
-    public class CloudReportService : IReportService, ICloudStorageStatusDependency
+    public class CloudReportService<TContainerName> : IReportService<TContainerName>, ICloudStorageStatusDependency 
+        where TContainerName: IReportContainerName, new()
     {
-        private const string _statsContainerName = "nuget-cdnstats";
+        private string _statsContainerName = (new TContainerName()).GetContainerName();
         private readonly string _connectionString;
         private readonly bool _readAccessGeoRedundant;
 

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using NuGetGallery.Infrastructure.Cloud;
 
 namespace NuGetGallery
 {
@@ -30,7 +31,7 @@ namespace NuGetGallery
         /// <summary>
         /// The service used to load reports in the form of JSON blobs.
         /// </summary>
-        private readonly IReportService _reportService;
+        private readonly IReportService<StatsContainer> _reportService;
 
         /// <summary>
         /// The semaphore used to update the statistics service's reports.
@@ -52,7 +53,7 @@ namespace NuGetGallery
         private readonly List<StatisticsNuGetUsageItem> _nuGetClientVersion = new List<StatisticsNuGetUsageItem>();
         private readonly List<StatisticsWeeklyUsageItem> _last6Weeks = new List<StatisticsWeeklyUsageItem>();
 
-        public JsonStatisticsService(IReportService reportService)
+        public JsonStatisticsService(IReportService<StatsContainer> reportService)
         {
             _reportService = reportService;
         }
