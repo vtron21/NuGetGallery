@@ -1153,7 +1153,8 @@ img.reserved-indicator-icon {
 .page-manage-owners .current-owner .remove-owner-disabled .icon-link:hover span {
   text-decoration: none;
 }
-.page-manage-packages .organizations-divider {
+.page-manage-packages .organizations-divider,
+.page-manage-packages .packages-divider {
   color: #dbdbdb;
 }
 .page-manage-packages h1 {
@@ -1486,8 +1487,8 @@ img.reserved-indicator-icon {
 .page-status .status-degraded .ms-Icon {
   color: orange;
 }
-.page-status .latest-updates + p {
-  margin-top: 24px;
+.page-status .update {
+  margin-bottom: 24px;
 }
 .page-status .ms-Icon {
   margin-right: 10px;
