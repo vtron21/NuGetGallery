@@ -125,6 +125,10 @@ Your package was not published on {CoreConfiguration.GalleryOwner.DisplayName} a
                 case ValidationIssueCode.PackageIsSignedWithUnauthorizedCertificate:
                     var certIssue = (UnauthorizedCertificateFailure)validationIssue;
                     return $"The package was signed, but the signing certificate {(certIssue != null ? $"(SHA-1 thumbprint {certIssue.Sha1Thumbprint})" : "")} is not associated with your account. You must register this certificate to publish signed packages. [Read more...](https://aka.ms/nuget-signed-ref)";
+                case ValidationIssueCode.SymbolErrorCode_ChecksumDoesNotMatch:
+                    return "Only symbols that store the crypto hash are supported. The symbols were not generated with a compiler the adds the crypto hash or there is a checksum mismatch between the pdbs and dlls.[Read more...](https://github.com/dotnet/corefx/blob/master/src/System.Reflection.Metadata/specs/PE-COFF.md#portable-pdb-checksum)";
+                case ValidationIssueCode.SymbolErrorCode_MatchingPortablePDBNotFound:
+                    return "Only portable pdbs are supported to be ingested into NuGet Symbol Server.";
                 default:
                     return "There was an unknown failure when validating your package.";
             }

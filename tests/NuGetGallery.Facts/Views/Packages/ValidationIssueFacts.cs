@@ -101,6 +101,8 @@ namespace NuGetGallery.Views.Packages
                 yield return ValidationIssue.AuthorCounterSignaturesNotSupported;
                 yield return ValidationIssue.PackageIsNotSigned;
                 yield return new UnauthorizedCertificateFailure("thumbprint");
+                yield return ValidationIssue.SymbolErrorCode_ChecksumDoesNotMatch;
+                yield return ValidationIssue.SymbolErrorCode_MatchingPortablePDBNotFound;
             }
         }
 
