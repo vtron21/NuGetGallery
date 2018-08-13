@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
 using System.Web.Routing;
+using Autofac;
 using Moq;
 using Newtonsoft.Json.Linq;
 using NuGet.Packaging;
@@ -21,10 +22,12 @@ using NuGet.Versioning;
 using NuGetGallery.Auditing;
 using NuGetGallery.Authentication;
 using NuGetGallery.Configuration;
+using NuGetGallery.Diagnostics;
 using NuGetGallery.Framework;
 using NuGetGallery.Infrastructure.Authentication;
 using NuGetGallery.Packaging;
 using NuGetGallery.Security;
+using NuGetGallery.TestUtils;
 using Xunit;
 
 namespace NuGetGallery
@@ -56,7 +59,8 @@ namespace NuGetGallery
 
         public TestableApiController(
             IGalleryConfigurationService configurationService,
-            MockBehavior behavior = MockBehavior.Default)
+            MockBehavior behavior = MockBehavior.Default,
+            ISecurityPolicyService securityPolicyService = null)
         {
             SetOwinContextOverride(Fakes.CreateOwinContext());
             ApiScopeEvaluator = (MockApiScopeEvaluator = new Mock<IApiScopeEvaluator>()).Object;
@@ -68,7 +72,7 @@ namespace NuGetGallery
             IndexingService = (MockIndexingService = new Mock<IIndexingService>()).Object;
             AutoCuratePackage = (MockAutoCuratePackage = new Mock<IAutomaticallyCuratePackageCommand>()).Object;
             AuthenticationService = (MockAuthenticationService = new Mock<AuthenticationService>()).Object;
-            SecurityPolicyService = (MockSecurityPolicyService = new Mock<ISecurityPolicyService>()).Object;
+            SecurityPolicyService = securityPolicyService ?? (MockSecurityPolicyService = new Mock<ISecurityPolicyService>()).Object;
             ReservedNamespaceService = (MockReservedNamespaceService = new Mock<IReservedNamespaceService>()).Object;
             PackageUploadService = (MockPackageUploadService = new Mock<IPackageUploadService>()).Object;
             PackageDeleteService = (MockPackageDeleteService = new Mock<IPackageDeleteService>()).Object;
@@ -95,10 +99,13 @@ namespace NuGetGallery
             MockTelemetryService = new Mock<ITelemetryService>();
             TelemetryService = MockTelemetryService.Object;
 
-            MockSecurityPolicyService.Setup(s => s.EvaluateUserPoliciesAsync(It.IsAny<SecurityPolicyAction>(), It.IsAny<HttpContextBase>()))
-                .Returns(Task.FromResult(SecurityPolicyResult.SuccessResult));
-            MockSecurityPolicyService.Setup(s => s.EvaluatePackagePoliciesAsync(It.IsAny<SecurityPolicyAction>(), It.IsAny<HttpContextBase>(), It.IsAny<Package>(), It.IsAny<User>()))
-                .Returns(Task.FromResult(SecurityPolicyResult.SuccessResult));
+            if(MockSecurityPolicyService != null)
+            {
+                MockSecurityPolicyService.Setup(s => s.EvaluateUserPoliciesAsync(It.IsAny<SecurityPolicyAction>(), It.IsAny<HttpContextBase>()))
+                    .Returns(Task.FromResult(SecurityPolicyResult.SuccessResult));
+                MockSecurityPolicyService.Setup(s => s.EvaluatePackagePoliciesAsync(It.IsAny<SecurityPolicyAction>(), It.IsAny<HttpContextBase>(), It.IsAny<Package>(), It.IsAny<User>()))
+                    .Returns(Task.FromResult(SecurityPolicyResult.SuccessResult));
+            }
             
             MockReservedNamespaceService
                 .Setup(s => s.GetReservedNamespacesForId(It.IsAny<string>()))
@@ -1328,6 +1335,81 @@ namespace NuGetGallery
                 Assert.NotNull(statusCodeResult);
                 Assert.Equal((int)HttpStatusCode.Forbidden, statusCodeResult.StatusCode);
                 Assert.Contains(PackageId, statusCodeResult.StatusDescription);
+            }
+
+            public class CalledByUserWithMicrosoftTeamSubscription
+                : TestContainer
+            {
+                [Fact]
+                public async Task AddsRequiredCoOwnerWhenPackageWithNewRegistrationIdIsCompliant()
+                {
+                    // Arrange
+                    var packageId = "theId";
+                    var nuGetPackageMock = CreateCompliantPackage(packageId, "1.0.0", isSigned: true);
+                    var packageArchiveReader = nuGetPackageMock.Object;
+
+                    var microsoftTeamSubscription = new MicrosoftTeamSubscription();
+                    var user = new User()
+                    {
+                        EmailAddress = "confirmed@email.com",
+                        SecurityPolicies = microsoftTeamSubscription.Policies.ToList()
+                    };
+
+                    var securityPolicyService = CreateSecurityPolicyService();
+
+                    var controller = new TestableApiController(
+                        GetConfigurationService(),
+                        MockBehavior.Strict,
+                        securityPolicyService);
+
+                    controller.SetCurrentUser(user);
+                    controller.SetupPackageFromInputStream(packageArchiveReader.GetStream());
+                    controller.MockPackageService
+                        .Setup(m => m.FindPackageRegistrationById(packageId))
+                        .Returns((PackageRegistration)null)
+                        .Verifiable();
+                    
+                    // Act
+                    var result = await controller.CreatePackagePut();
+
+                    // Assert
+                    var statusCodeResult = result as HttpStatusCodeWithServerWarningResult;
+
+                    Assert.NotNull(statusCodeResult);
+                    Assert.Equal((int)HttpStatusCode.Created, statusCodeResult.StatusCode);
+
+                    controller.MockPackageService.VerifyAll();
+                }
+
+                private static ISecurityPolicyService CreateSecurityPolicyService()
+                {
+                    var entitiesContext = new FakeEntitiesContext();
+                    var auditing = new Mock<IAuditingService>(MockBehavior.Strict).Object;
+                    var diagnostics = new Mock<IDiagnosticsService>(MockBehavior.Strict).Object;
+
+                    var configurationMock = new Mock<IAppConfiguration>(MockBehavior.Strict);
+                    configurationMock.SetupGet(m => m.EnforceDefaultSecurityPolicies).Returns(false);
+
+                    var componentContext = new Mock<IComponentContext>(MockBehavior.Strict).Object;
+
+                    return new SecurityPolicyService(
+                        entitiesContext,
+                        auditing,
+                        diagnostics,
+                        configurationMock.Object,
+                        componentContext);
+                }
+
+                private static Mock<TestPackageReader> CreateCompliantPackage(string id, string version, bool isSigned)
+                {
+                    return PackageServiceUtility.CreateNuGetPackage(
+                        id: id,
+                        version: version,
+                        isSigned: isSigned,
+                        copyright: "(c) Microsoft Corporation. All rights reserved.",
+                        projectUrl: new Uri("https://www.nuget.org"),
+                        licenseUrl: new Uri("https://github.com/NuGet/NuGetGallery/blob/master/LICENSE.txt"));
+                }
             }
         }
 
