@@ -70,9 +70,8 @@ namespace NuGetGallery.Security
             Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             DefaultSubscription = new DefaultSubscription();
             MicrosoftTeamSubscription = microsoftTeamSubscription;
-
-            _packageOwnershipManagementService = packageOwnershipManagementService;
-            _userService = userService;
+            _packageOwnershipManagementService = packageOwnershipManagementService ?? throw new ArgumentNullException(nameof(packageOwnershipManagementService));
+            _userService = userService ?? throw new ArgumentNullException(nameof(userService));
         }
 
         /// <summary>

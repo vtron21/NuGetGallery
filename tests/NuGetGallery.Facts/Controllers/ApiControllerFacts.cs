@@ -118,7 +118,8 @@ namespace NuGetGallery
                 .ReturnsAsync(PackageValidationResult.Accepted());
 
             MockPackageUploadService.Setup(x => x.GeneratePackageAsync(It.IsAny<string>(), It.IsAny<PackageArchiveReader>(), It.IsAny<PackageStreamMetadata>(), It.IsAny<User>(), It.IsAny<User>()))
-                .Returns((string id, PackageArchiveReader nugetPackage, PackageStreamMetadata packageStreamMetadata, User owner, User currentUser) => {
+                .Returns((string id, PackageArchiveReader nugetPackage, PackageStreamMetadata packageStreamMetadata, User owner, User currentUser) =>
+                {
                     var packageMetadata = PackageMetadata.FromNuspecReader(
                         nugetPackage.GetNuspecReader(),
                         strict: true);
@@ -131,8 +132,8 @@ namespace NuGetGallery
                     package.Version = packageMetadata.Version.ToString();
                     package.SemVerLevelKey = SemVerLevelKey.ForPackage(packageMetadata.Version, packageMetadata.GetDependencyGroups().AsPackageDependencyEnumerable());
                     package.FlattenedAuthors = packageMetadata.Authors.Flatten();
-                    package.LicenseUrl = packageMetadata.LicenseUrl.ToString();
-                    package.ProjectUrl = packageMetadata.ProjectUrl.ToString();
+                    package.LicenseUrl = packageMetadata.LicenseUrl?.ToString();
+                    package.ProjectUrl = packageMetadata.ProjectUrl?.ToString();
                     package.Copyright = packageMetadata.Copyright;
 
                     return Task.FromResult(package);
@@ -202,8 +203,8 @@ namespace NuGetGallery
                     if (result == PermissionsCheckResult.Allowed)
                     {
                         yield return MemberDataHelper.AsData(
-                            new ApiScopeEvaluationResult(new User("testOwner") { Key = 94443 }, result, scopesAreValid: true), 
-                            HttpStatusCode.Forbidden, 
+                            new ApiScopeEvaluationResult(new User("testOwner") { Key = 94443 }, result, scopesAreValid: true),
+                            HttpStatusCode.Forbidden,
                             Strings.ApiKeyOwnerUnconfirmed);
                     }
 
@@ -578,7 +579,7 @@ namespace NuGetGallery
                 packageRegistration.Packages.Add(package);
 
                 var controller = new TestableApiController(GetConfigurationService());
-                
+
                 controller.MockPackageService.Setup(p => p.FindPackageRegistrationById(It.IsAny<string>()))
                     .Returns(packageRegistration);
 
@@ -651,10 +652,10 @@ namespace NuGetGallery
             }
 
             [Theory]
-            [InlineData(false, false,  true)]
-            [InlineData( true, false,  true)]
-            [InlineData(false,  true,  true)]
-            [InlineData( true,  true, false)]
+            [InlineData(false, false, true)]
+            [InlineData(true, false, true)]
+            [InlineData(false, true, true)]
+            [InlineData(true, true, false)]
             public async Task CreatePackageWillSendPackageAddedNotice(bool asyncValidationEnabled, bool blockingValidationEnabled, bool callExpected)
             {
                 // Arrange
@@ -805,10 +806,10 @@ namespace NuGetGallery
                 // Assert
                 controller.MockPackageDeleteService.Verify(
                     x => x.HardDeletePackagesAsync(
-                        It.IsAny<IEnumerable<Package>>(), 
-                        It.IsAny<User>(), 
-                        It.IsAny<string>(), 
-                        It.IsAny<string>(), 
+                        It.IsAny<IEnumerable<Package>>(),
+                        It.IsAny<User>(),
+                        It.IsAny<string>(),
+                        It.IsAny<string>(),
                         It.IsAny<bool>()),
                     Times.Never());
 
@@ -853,11 +854,11 @@ namespace NuGetGallery
                 // Assert
                 controller.MockPackageDeleteService.Verify(
                     x => x.HardDeletePackagesAsync(
-                        new[] { conflictingPackage }, 
+                        new[] { conflictingPackage },
                         currentUser,
                         Strings.FailedValidationHardDeleteReason,
                         Strings.AutomatedPackageDeleteSignature,
-                        false), 
+                        false),
                     Times.Once());
 
                 controller.MockTelemetryService.Verify(
@@ -1059,7 +1060,7 @@ namespace NuGetGallery
                         owner,
                         currentUser),
                     Times.Once);
-                
+
                 controller.MockApiScopeEvaluator.Verify(evaluateApiScope);
             }
 
@@ -1109,9 +1110,9 @@ namespace NuGetGallery
                 controller.AuditingService.WroteRecord<FailedAuthenticatedOperationAuditRecord>(
                     (record) =>
                     {
-                        return 
-                            record.UsernameOrEmail == currentUser.Username && 
-                            record.Action == AuditedAuthenticatedOperationAction.PackagePushAttemptByNonOwner && 
+                        return
+                            record.UsernameOrEmail == currentUser.Username &&
+                            record.Action == AuditedAuthenticatedOperationAction.PackagePushAttemptByNonOwner &&
                             record.AttemptedPackage.Id == packageId &&
                             record.AttemptedPackage.Version == packageVersion;
                     });
@@ -1348,6 +1349,54 @@ namespace NuGetGallery
             public class CalledByUserWithMicrosoftTeamSubscription
                 : TestContainer
             {
+                public static IEnumerable<object[]> NonCompliantPackages_Data
+                {
+                    get
+                    {
+                        var packageId = "theId";
+                        var microsoftTeamSubscription = new MicrosoftTeamSubscription();
+                        var user = new User()
+                        {
+                            EmailAddress = "confirmed@email.com",
+                            Username = "theUser",
+                            SecurityPolicies = microsoftTeamSubscription.Policies.ToList()
+                        };
+
+                        // Missing required co-owner
+                        yield return MemberDataHelper.AsData(
+                            CreatePackage(
+                                packageId,
+                                "1.0.0",
+                                isSigned: false,
+                                authors: $"{user.Username}",
+                                licenseUrl: new Uri("https://github.com/NuGet/NuGetGallery/blob/master/LICENSE.txt"),
+                                projectUrl: new Uri("https://www.nuget.org")).Object,
+                            user);
+
+                        // Missing license url
+                        yield return MemberDataHelper.AsData(
+                            CreatePackage(
+                                packageId,
+                                "1.0.0",
+                                isSigned: false,
+                                authors: $"{user.Username},{MicrosoftTeamSubscription.MicrosoftUsername}",
+                                licenseUrl: null,
+                                projectUrl: new Uri("https://www.nuget.org")).Object,
+                            user);
+
+                        // Missing project url
+                        yield return MemberDataHelper.AsData(
+                            CreatePackage(
+                                packageId,
+                                "1.0.0",
+                                isSigned: false,
+                                authors: $"{user.Username},{MicrosoftTeamSubscription.MicrosoftUsername}",
+                                licenseUrl: new Uri("https://github.com/NuGet/NuGetGallery/blob/master/LICENSE.txt"),
+                                projectUrl: null).Object,
+                            user);
+                    }
+                }
+
                 [Fact]
                 public async Task AddsRequiredCoOwnerWhenPackageWithNewRegistrationIdIsCompliant()
                 {
@@ -1365,12 +1414,13 @@ namespace NuGetGallery
                         Username = MicrosoftTeamSubscription.MicrosoftUsername
                     };
 
-                    var nuGetPackageMock = CreateCompliantPackage(
-                        packageId, 
-                        "1.0.0", 
+                    var nuGetPackageMock = CreatePackage(
+                        packageId,
+                        "1.0.0",
                         isSigned: true,
-                        authors: $"{user.Username},{requiredCoOwner.Username}");
-                    var packageArchiveReader = nuGetPackageMock.Object;
+                        authors: $"{user.Username},{requiredCoOwner.Username}",
+                        licenseUrl: new Uri("https://github.com/NuGet/NuGetGallery/blob/master/LICENSE.txt"),
+                        projectUrl: new Uri("https://www.nuget.org"));
 
                     var userServiceMock = new Mock<IUserService>(MockBehavior.Strict);
                     userServiceMock.Setup(m => m.FindByUsername(MicrosoftTeamSubscription.MicrosoftUsername, false))
@@ -1394,7 +1444,7 @@ namespace NuGetGallery
                         userServiceMock.Object);
 
                     controller.SetCurrentUser(user);
-                    controller.SetupPackageFromInputStream(packageArchiveReader.GetStream());
+                    controller.SetupPackageFromInputStream(nuGetPackageMock.Object.GetStream());
                     controller.MockPackageService
                         .Setup(m => m.FindPackageRegistrationById(packageId))
                         .Returns((PackageRegistration)null)
@@ -1418,6 +1468,63 @@ namespace NuGetGallery
                     controller.MockPackageService.VerifyAll();
                 }
 
+                [Theory]
+                [MemberData(nameof(NonCompliantPackages_Data))]
+                public async Task DoesNotAddRequiredCoOwnerWhenPackageIsNotCompliant(TestPackageReader packageReader, User user)
+                {
+                    // Arrange
+                    var packageId = "theId";
+                    var requiredCoOwner = new User()
+                    {
+                        Username = MicrosoftTeamSubscription.MicrosoftUsername
+                    };
+
+                    var userServiceMock = new Mock<IUserService>(MockBehavior.Strict);
+                    userServiceMock.Setup(m => m.FindByUsername(MicrosoftTeamSubscription.MicrosoftUsername, false))
+                        .Returns(requiredCoOwner)
+                        .Verifiable();
+
+                    var packageOwnershipManagementServiceMock = new Mock<IPackageOwnershipManagementService>(MockBehavior.Strict);
+                    packageOwnershipManagementServiceMock
+                        .Setup(m => m.AddPackageOwnerAsync(It.IsAny<PackageRegistration>(), requiredCoOwner, false /* not committing changes! */))
+                        .Returns(Task.CompletedTask)
+                        .Verifiable();
+
+                    var securityPolicyService = CreateSecurityPolicyService(
+                        new Lazy<IUserService>(() => userServiceMock.Object),
+                        new Lazy<IPackageOwnershipManagementService>(() => packageOwnershipManagementServiceMock.Object));
+
+                    var controller = new TestableApiController(
+                        GetConfigurationService(),
+                        MockBehavior.Strict,
+                        securityPolicyService,
+                        userServiceMock.Object);
+
+                    controller.SetCurrentUser(user);
+                    controller.SetupPackageFromInputStream(packageReader.GetStream());
+                    controller.MockPackageService
+                        .Setup(m => m.FindPackageRegistrationById(packageId))
+                        .Returns((PackageRegistration)null)
+                        .Verifiable();
+                    controller.MockPackageService
+                        .Setup(m => m.EnsureValid(It.IsAny<PackageArchiveReader>()))
+                        .Returns(Task.FromResult(true))
+                        .Verifiable();
+
+                    // Act
+                    var result = await controller.CreatePackagePut();
+
+                    // Assert
+                    var statusCodeResult = result as HttpStatusCodeWithBodyResult;
+
+                    Assert.NotNull(statusCodeResult);
+                    Assert.Equal((int)HttpStatusCode.BadRequest, statusCodeResult.StatusCode);
+
+                    userServiceMock.VerifyAll();
+                    packageOwnershipManagementServiceMock.Verify(m => m.AddPackageOwnerAsync(It.IsAny<PackageRegistration>(), requiredCoOwner, false), Times.Never, "Required co-owner should not be added for non-compliant package.");
+                    controller.MockPackageService.VerifyAll();
+                }
+
                 private static ISecurityPolicyService CreateSecurityPolicyService(
                     Lazy<IUserService> userServiceFactory,
                     Lazy<IPackageOwnershipManagementService> packageOwnershipManagementServiceFactory)
@@ -1438,7 +1545,13 @@ namespace NuGetGallery
                         packageOwnershipManagementServiceFactory);
                 }
 
-                private static Mock<TestPackageReader> CreateCompliantPackage(string id, string version, bool isSigned, string authors)
+                private static Mock<TestPackageReader> CreatePackage(
+                    string id,
+                    string version,
+                    bool isSigned,
+                    string authors,
+                    Uri licenseUrl,
+                    Uri projectUrl)
                 {
                     return PackageServiceUtility.CreateNuGetPackage(
                         id: id,
@@ -1446,8 +1559,8 @@ namespace NuGetGallery
                         isSigned: isSigned,
                         authors: authors,
                         copyright: "(c) Microsoft Corporation. All rights reserved.",
-                        projectUrl: new Uri("https://www.nuget.org"),
-                        licenseUrl: new Uri("https://github.com/NuGet/NuGetGallery/blob/master/LICENSE.txt"));
+                        projectUrl: projectUrl,
+                        licenseUrl: licenseUrl);
                 }
             }
         }
@@ -1515,7 +1628,7 @@ namespace NuGetGallery
             {
                 var fakes = Get<Fakes>();
                 var currentUser = fakes.User;
-                
+
                 var id = "theId";
                 var package = new Package
                 {
@@ -1857,7 +1970,7 @@ namespace NuGetGallery
                 controller.MockPackageService.Setup(x => x.FindPackageByIdAndVersionStrict(It.IsAny<string>(), It.IsAny<string>())).Returns(package);
 
                 controller.SetCurrentUser(currentUser);
-                
+
                 ResultAssert.IsEmpty(await controller.PublishPackage("theId", "1.0.42"));
 
                 controller.MockPackageService.Verify(x => x.MarkPackageListedAsync(package, true));
@@ -2164,7 +2277,7 @@ namespace NuGetGallery
                 controller.MockTelemetryService.Verify(x => x.TrackVerifyPackageKeyEvent(PackageId, PackageVersion,
                     It.IsAny<User>(), controller.OwinContext.Request.User.Identity, (int)expectedStatusCode), Times.Once);
             }
-            
+
             [Fact]
             public Task Returns200_VerifyV1()
             {
